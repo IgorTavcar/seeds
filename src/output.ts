@@ -42,10 +42,14 @@ export function printIssueOneLine(issue: Issue): void {
 					? chalk.yellow("!")
 					: brand("-");
 	const priorityLabel = PRIORITY_LABELS[issue.priority] ?? String(issue.priority);
+	const labels =
+		issue.labels && issue.labels.length > 0
+			? ` ${chalk.magenta(`[${issue.labels.join(", ")}]`)}`
+			: "";
 	const assignee = issue.assignee ? ` · ${muted(`@${issue.assignee}`)}` : "";
 	const blocked = isBlocked ? ` ${chalk.yellow("[blocked]")}` : "";
 	console.log(
-		`${statusIcon} ${accent.bold(issue.id)} · ${issue.title}   ${muted(`[${priorityLabel} · ${issue.type}]`)}${assignee}${blocked}`,
+		`${statusIcon} ${accent.bold(issue.id)} · ${issue.title}   ${muted(`[${priorityLabel} · ${issue.type}]`)}${labels}${assignee}${blocked}`,
 	);
 }
 
@@ -59,6 +63,8 @@ export function printIssueFull(issue: Issue): void {
 	console.log(`Title:    ${issue.title}`);
 	console.log(`Type:     ${muted(issue.type)}   Priority: ${muted(priorityLabel)}`);
 	if (issue.assignee) console.log(`Assignee: ${issue.assignee}`);
+	if (issue.labels?.length)
+		console.log(`Labels:   ${issue.labels.map((l) => accent(l)).join(", ")}`);
 	if (issue.description) console.log(`\n${issue.description}`);
 	if (issue.blockedBy?.length)
 		console.log(`Blocked by: ${issue.blockedBy.map((id) => accent(id)).join(", ")}`);

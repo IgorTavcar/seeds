@@ -145,6 +145,17 @@ function checkSchemaValidation(seedsDir: string): DoctorCheck {
 		if (typeof issue.priority === "number" && (issue.priority < 0 || issue.priority > 4)) {
 			details.push(`${id}: invalid priority ${String(issue.priority)} (must be 0-4)`);
 		}
+		if (issue.labels !== undefined) {
+			if (!Array.isArray(issue.labels)) {
+				details.push(`${id}: labels is not an array`);
+			} else {
+				for (const [li, label] of issue.labels.entries()) {
+					if (typeof label !== "string" || label.trim().length === 0) {
+						details.push(`${id}: labels[${String(li)}] is not a non-empty string`);
+					}
+				}
+			}
+		}
 	}
 	if (details.length > 0) {
 		return {

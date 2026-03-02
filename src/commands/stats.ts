@@ -32,11 +32,18 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 		byPriority[issue.priority] = (byPriority[issue.priority] ?? 0) + 1;
 	}
 
+	const byLabel: Record<string, number> = {};
+	for (const issue of issues) {
+		for (const label of issue.labels ?? []) {
+			byLabel[label] = (byLabel[label] ?? 0) + 1;
+		}
+	}
+
 	if (jsonMode) {
 		outputJson({
 			success: true,
 			command: "stats",
-			stats: { total, open, inProgress, closed, blocked, byType, byPriority },
+			stats: { total, open, inProgress, closed, blocked, byType, byPriority, byLabel },
 		});
 	} else {
 		console.log(`${chalk.bold("Project Statistics")}`);
@@ -54,6 +61,13 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 			for (const [p, count] of Object.entries(byPriority)) {
 				const label = PRIORITY_LABELS[Number(p)] ?? String(p);
 				console.log(`  ${muted(`P${p} ${label.padEnd(10)}`)} ${count}`);
+			}
+		}
+		if (Object.keys(byLabel).length > 0) {
+			console.log(`\n${chalk.bold("By Label")}`);
+			const sorted = Object.entries(byLabel).sort((a, b) => b[1] - a[1]);
+			for (const [label, count] of sorted) {
+				console.log(`  ${muted(label.padEnd(14))} ${count}`);
 			}
 		}
 	}

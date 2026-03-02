@@ -52,6 +52,7 @@ seeds/
       update.ts               # sd update
       close.ts                # sd close
       dep.ts                  # sd dep add/remove/list
+      label.ts                # sd label add/remove/list/list-all
       sync.ts                 # sd sync
       blocked.ts              # sd blocked
       stats.ts                # sd stats
@@ -70,6 +71,7 @@ seeds/
       init.test.ts
       create.test.ts
       dep.test.ts
+      label.test.ts
       tpl.test.ts
       doctor.test.ts
       prime.test.ts
@@ -123,16 +125,23 @@ sd create --title <text>               Create a new issue
   --priority 0-4 or P0-P4             (default: 2)
   --description <text>
   --assignee <name>
+  --labels <labels>                    Comma-separated labels
 sd show <id>                           Show issue details
 sd list                                List issues with filters
   --status --type --assignee --limit
+  --label --label-any --unlabeled
 sd ready                               Open issues with no unresolved blockers
 sd update <id>                         Update issue fields
+  --add-label --remove-label --set-labels
 sd close <id> [<id2> ...]              Close one or more issues
   --reason <text>
 sd dep add <issue> <depends-on>        Add dependency
 sd dep remove <issue> <depends-on>     Remove dependency
 sd dep list <issue>                    Show deps for an issue
+sd label add <id...> <label>           Add label to issue(s)
+sd label remove <id...> <label>        Remove label from issue(s)
+sd label list <id>                     Show labels on an issue
+sd label list-all                      All unique labels with counts
 sd blocked                             Show all blocked issues
 sd stats                               Project statistics
 sd sync                                Stage and commit .seeds/ changes
@@ -214,6 +223,7 @@ interface Issue {
   priority: number;            // 0=critical, 1=high, 2=medium, 3=low, 4=backlog
   assignee?: string;
   description?: string;
+  labels?: string[];
   closeReason?: string;
   blocks?: string[];
   blockedBy?: string[];

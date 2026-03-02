@@ -85,6 +85,32 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 			patch.priority = p;
 		}
 
+		// Label operations chain: set-labels first, then add-label, then remove-label.
+		// Each operates on the accumulated result so all flags can be combined.
+		let labelBase = issue.labels ?? [];
+
+		if (typeof flags["set-labels"] === "string") {
+			const val = flags["set-labels"];
+			if (val === "") {
+				labelBase = [];
+			} else {
+				const labels = val
+					.split(",")
+					.map((s) => s.trim())
+					.filter((s) => s.length > 0);
+				labelBase = labels;
+			}
+			patch.labels = labelBase.length > 0 ? labelBase : undefined;
+		}
+		if (typeof flags["add-label"] === "string") {
+			labelBase = Array.from(new Set([...labelBase, flags["add-label"]]));
+			patch.labels = labelBase;
+		}
+		if (typeof flags["remove-label"] === "string") {
+			labelBase = labelBase.filter((l) => l !== flags["remove-label"]);
+			patch.labels = labelBase.length > 0 ? labelBase : undefined;
+		}
+
 		issues[idx] = { ...issue, ...patch };
 		updated = issues[idx];
 		await writeIssues(dir, issues);
@@ -108,6 +134,9 @@ export function register(program: Command): void {
 		.option("--desc <text>", "New description (alias for --description)")
 		.option("--type <type>", "New type (task|bug|feature|epic)")
 		.option("--priority <n>", "New priority 0-4 or P0-P4")
+		.option("--add-label <label>", "Add a label")
+		.option("--remove-label <label>", "Remove a label")
+		.option("--set-labels [labels]", "Set labels (comma-separated, empty to clear)")
 		.option("--json", "Output as JSON")
 		.action(
 			async (
@@ -120,6 +149,9 @@ export function register(program: Command): void {
 					desc?: string;
 					type?: string;
 					priority?: string;
+					addLabel?: string;
+					removeLabel?: string;
+					setLabels?: string | true;
 					json?: boolean;
 				},
 			) => {
@@ -131,6 +163,11 @@ export function register(program: Command): void {
 				if (opts.desc) args.push("--desc", opts.desc);
 				if (opts.type) args.push("--type", opts.type);
 				if (opts.priority) args.push("--priority", opts.priority);
+				if (opts.addLabel) args.push("--add-label", opts.addLabel);
+				if (opts.removeLabel) args.push("--remove-label", opts.removeLabel);
+				if (opts.setLabels !== undefined) {
+					args.push("--set-labels", opts.setLabels === true ? "" : opts.setLabels);
+				}
 				if (opts.json) args.push("--json");
 				await run(args);
 			},

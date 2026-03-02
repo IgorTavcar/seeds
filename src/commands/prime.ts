@@ -22,6 +22,8 @@ sd create --title "..."   # Create issue (--type, --priority)
 sd update <id> --status in_progress  # Claim work
 sd close <id>             # Complete work
 sd dep add <a> <b>        # a depends on b
+sd label add <id> <label>  # Add label to issue
+sd label remove <id> <l>  # Remove label from issue
 sd blocked                # Show blocked issues
 sd sync                   # Stage + commit .seeds/
 \`\`\`
@@ -70,6 +72,17 @@ function fullContent(): string {
 - \`sd update <id> --assignee=username\` — Assign to someone
 - \`sd close <id>\` — Mark complete
 - \`sd close <id1> <id2> ...\` — Close multiple issues at once
+
+### Labels
+- \`sd label add <issue-id...> <label>\` — Add label to issue(s)
+- \`sd label remove <issue-id...> <label>\` — Remove label from issue(s)
+- \`sd label list <issue>\` — Show labels on an issue
+- \`sd label list-all\` — Show all labels with counts
+- \`sd create --labels="bug,urgent"\` — Set labels at creation
+- \`sd update <id> --add-label=bug\` — Add label via update
+- \`sd list --label=bug,urgent\` — Filter by labels (AND)
+- \`sd list --label-any=bug,feature\` — Filter by labels (OR)
+- \`sd list --unlabeled\` — Show unlabeled issues
 
 ### Dependencies & Blocking
 - \`sd dep add <issue> <depends-on>\` — Add dependency

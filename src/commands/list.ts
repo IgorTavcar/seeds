@@ -43,6 +43,21 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 	const statusFilter = typeof flags.status === "string" ? flags.status : undefined;
 	const typeFilter = typeof flags.type === "string" ? flags.type : undefined;
 	const assigneeFilter = typeof flags.assignee === "string" ? flags.assignee : undefined;
+	const labelAndFilter =
+		typeof flags.label === "string"
+			? flags.label
+					.split(",")
+					.map((s) => s.trim())
+					.filter((s) => s.length > 0)
+			: undefined;
+	const labelOrFilter =
+		typeof flags["label-any"] === "string"
+			? flags["label-any"]
+					.split(",")
+					.map((s) => s.trim())
+					.filter((s) => s.length > 0)
+			: undefined;
+	const noLabels = flags.unlabeled === true;
 	const showAll = flags.all === true;
 	const limitStr = typeof flags.limit === "string" ? flags.limit : "50";
 	const limit = Number.parseInt(limitStr, 10) || 50;
@@ -57,6 +72,21 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 	}
 	if (typeFilter) issues = issues.filter((i: Issue) => i.type === typeFilter);
 	if (assigneeFilter) issues = issues.filter((i: Issue) => i.assignee === assigneeFilter);
+	if (labelAndFilter && labelAndFilter.length > 0) {
+		issues = issues.filter((i: Issue) => {
+			const labels = i.labels ?? [];
+			return labelAndFilter.every((l) => labels.includes(l));
+		});
+	}
+	if (labelOrFilter && labelOrFilter.length > 0) {
+		issues = issues.filter((i: Issue) => {
+			const labels = i.labels ?? [];
+			return labelOrFilter.some((l) => labels.includes(l));
+		});
+	}
+	if (noLabels) {
+		issues = issues.filter((i: Issue) => !i.labels || i.labels.length === 0);
+	}
 
 	issues = issues.slice(0, limit);
 
@@ -82,6 +112,9 @@ export function register(program: Command): void {
 		.option("--type <type>", "Filter by type (task|bug|feature|epic)")
 		.option("--assignee <name>", "Filter by assignee")
 		.option("--all", "Include closed issues (default: only open/in_progress)")
+		.option("--label <labels>", "Filter by labels (comma-separated, AND logic)")
+		.option("--label-any <labels>", "Filter by labels (comma-separated, OR logic)")
+		.option("--unlabeled", "Show only issues without labels")
 		.option("--limit <n>", "Max issues to show", "50")
 		.option("--json", "Output as JSON")
 		.action(
@@ -90,6 +123,9 @@ export function register(program: Command): void {
 				type?: string;
 				assignee?: string;
 				all?: boolean;
+				label?: string;
+				labelAny?: string;
+				unlabeled?: boolean;
 				limit?: string;
 				json?: boolean;
 			}) => {
@@ -98,6 +134,9 @@ export function register(program: Command): void {
 				if (opts.type) args.push("--type", opts.type);
 				if (opts.assignee) args.push("--assignee", opts.assignee);
 				if (opts.all) args.push("--all");
+				if (opts.label) args.push("--label", opts.label);
+				if (opts.labelAny) args.push("--label-any", opts.labelAny);
+				if (opts.unlabeled) args.push("--unlabeled");
 				if (opts.limit) args.push("--limit", opts.limit);
 				if (opts.json) args.push("--json");
 				await run(args);

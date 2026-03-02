@@ -7,6 +7,7 @@ export interface Issue {
 	assignee?: string;
 	description?: string;
 	closeReason?: string;
+	labels?: string[];
 	blocks?: string[];
 	blockedBy?: string[];
 	convoy?: string;
