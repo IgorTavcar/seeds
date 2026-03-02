@@ -133,6 +133,10 @@ sd close <id> [<id2> ...]              Close one or more issues
 sd dep add <issue> <depends-on>        Add dependency
 sd dep remove <issue> <depends-on>     Remove dependency
 sd dep list <issue>                    Show deps for an issue
+sd comment add <issue-id> <body>        Add a comment to an issue
+  --author <name>                      (or set SEEDS_AUTHOR env var)
+sd comment list <issue-id>             List comments on an issue
+sd comment delete <issue-id> <cmt-id>  Delete a comment
 sd blocked                             Show all blocked issues
 sd stats                               Project statistics
 sd sync                                Stage and commit .seeds/ changes

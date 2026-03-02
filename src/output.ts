@@ -69,4 +69,14 @@ export function printIssueFull(issue: Issue): void {
 	console.log(`Created:  ${muted(issue.createdAt)}`);
 	console.log(`Updated:  ${muted(issue.updatedAt)}`);
 	if (issue.closedAt) console.log(`Closed:   ${muted(issue.closedAt)}`);
+
+	if (issue.comments && issue.comments.length > 0) {
+		console.log(`\n${muted(`Comments (${issue.comments.length}):`)}`);
+		for (const comment of issue.comments) {
+			console.log(
+				`\n${accent.bold(comment.id)}  ${muted(comment.author)}  ${muted(comment.createdAt)}`,
+			);
+			console.log(comment.body);
+		}
+	}
 }
