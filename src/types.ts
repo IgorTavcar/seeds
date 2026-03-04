@@ -1,3 +1,11 @@
+export interface IssueComment {
+	id: string;
+	author: string;
+	body: string;
+	createdAt: string;
+	updatedAt?: string;
+}
+
 export interface Issue {
 	id: string;
 	title: string;
@@ -10,6 +18,7 @@ export interface Issue {
 	blocks?: string[];
 	blockedBy?: string[];
 	convoy?: string;
+	comments?: IssueComment[];
 	createdAt: string;
 	updatedAt: string;
 	closedAt?: string;
