@@ -375,7 +375,7 @@ describe("sd list label filters", () => {
 			["create", "--title", "Issue 1", "--labels", "bug,urgent"],
 			tmpDir,
 		);
-		const c2 = await runJson<{ success: boolean; id: string }>(
+		const _c2 = await runJson<{ success: boolean; id: string }>(
 			["create", "--title", "Issue 2", "--labels", "bug"],
 			tmpDir,
 		);
@@ -416,7 +416,7 @@ describe("sd list label filters", () => {
 	});
 
 	test("--unlabeled shows only unlabeled issues", async () => {
-		const c1 = await runJson<{ success: boolean; id: string }>(
+		const _c1 = await runJson<{ success: boolean; id: string }>(
 			["create", "--title", "Labeled", "--labels", "bug"],
 			tmpDir,
 		);

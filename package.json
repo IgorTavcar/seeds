@@ -7,14 +7,23 @@
 		"sd": "./src/index.ts"
 	},
 	"main": "src/index.ts",
-	"files": ["src"],
+	"files": [
+		"src"
+	],
 	"publishConfig": {
 		"access": "public"
 	},
 	"engines": {
 		"bun": ">=1.0.0"
 	},
-	"keywords": ["issue-tracking", "git", "ai", "agents", "cli", "developer-tools"],
+	"keywords": [
+		"issue-tracking",
+		"git",
+		"ai",
+		"agents",
+		"cli",
+		"developer-tools"
+	],
 	"author": "Jaymin West",
 	"license": "MIT",
 	"homepage": "https://github.com/jayminwest/seeds",
@@ -32,7 +41,7 @@
 		"version:bump": "bun run scripts/version-bump.ts"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.0",
+		"@biomejs/biome": "2.4.4",
 		"@types/bun": "latest",
 		"typescript": "^5.0.0"
 	},

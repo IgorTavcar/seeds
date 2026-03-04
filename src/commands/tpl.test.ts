@@ -280,7 +280,7 @@ describe("sd tpl status", () => {
 		await run(["tpl", "step", "add", create.id, "--title", "Step 1"], tmpDir);
 		await run(["tpl", "step", "add", create.id, "--title", "Step 2"], tmpDir);
 
-		const pour = await runJson<{ success: boolean; ids: string[] }>(
+		const _pour = await runJson<{ success: boolean; ids: string[] }>(
 			["tpl", "pour", create.id, "--prefix", "feature"],
 			tmpDir,
 		);

@@ -1,10 +1,10 @@
 import { existsSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { findSeedsDir, projectRootFromSeedsDir, readConfig } from "../config.ts";
 import { brand, muted, outputJson } from "../output.ts";
-import { issuesPath, readIssues, templatesPath, writeIssues, writeTemplates } from "../store.ts";
+import { readIssues } from "../store.ts";
 import type { Issue, Template } from "../types.ts";
 import {
 	ISSUES_FILE,
@@ -699,7 +699,7 @@ function reportResults(
 	checks: DoctorCheck[],
 	jsonMode: boolean,
 	verbose: boolean,
-	fixMode: boolean,
+	_fixMode: boolean,
 	_seedsDir: string,
 	fixedItems?: string[],
 ): void {

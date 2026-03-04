@@ -2,7 +2,6 @@ import { Command } from "commander";
 import { findSeedsDir } from "../config.ts";
 import { accent, muted, outputJson } from "../output.ts";
 import { issuesPath, readIssues, withLock, writeIssues } from "../store.ts";
-import type { Issue } from "../types.ts";
 
 function cleanLabels(labels: string[] | undefined): string[] | undefined {
 	if (!labels || labels.length === 0) return undefined;
