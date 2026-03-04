@@ -106,6 +106,8 @@ async function registerAll(): Promise<void> {
 		import("./commands/onboard.ts"),
 		import("./commands/upgrade.ts"),
 		import("./commands/completions.ts"),
+		import("./commands/block.ts"),
+		import("./commands/unblock.ts"),
 	]);
 
 	for (const mod of mods) {
