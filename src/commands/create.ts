@@ -71,6 +71,13 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 			: typeof flags.desc === "string"
 				? flags.desc
 				: undefined;
+	const labels =
+		typeof flags.labels === "string"
+			? flags.labels
+					.split(",")
+					.map((s) => s.trim())
+					.filter((s) => s.length > 0)
+			: undefined;
 
 	const dir = seedsDir ?? (await findSeedsDir());
 	const config = await readConfig(dir);
@@ -91,6 +98,7 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 			updatedAt: now,
 			...(assignee ? { assignee } : {}),
 			...(description ? { description } : {}),
+			...(labels?.length ? { labels } : {}),
 		};
 		await appendIssue(dir, issue);
 		createdId = id;
@@ -113,6 +121,7 @@ export function register(program: Command): void {
 		.option("--assignee <name>", "Assignee name")
 		.option("--description <text>", "Issue description")
 		.option("--desc <text>", "Issue description (alias for --description)")
+		.option("--labels <labels>", "Comma-separated labels")
 		.option("--json", "Output as JSON")
 		.action(
 			async (opts: {
@@ -122,6 +131,7 @@ export function register(program: Command): void {
 				assignee?: string;
 				description?: string;
 				desc?: string;
+				labels?: string;
 				json?: boolean;
 			}) => {
 				const args: string[] = ["--title", opts.title];
@@ -130,6 +140,7 @@ export function register(program: Command): void {
 				if (opts.assignee) args.push("--assignee", opts.assignee);
 				if (opts.description) args.push("--description", opts.description);
 				if (opts.desc) args.push("--desc", opts.desc);
+				if (opts.labels) args.push("--labels", opts.labels);
 				if (opts.json) args.push("--json");
 				await run(args);
 			},
