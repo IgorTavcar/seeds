@@ -1,3 +1,9 @@
+---
+name: release
+---
+
+## body
+
 Analyze all changes since the last release and prepare a new version.
 
 Steps:
