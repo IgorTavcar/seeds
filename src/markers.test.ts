@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
 	END_MARKER,
-	START_MARKER,
 	hasMarkerSection,
 	replaceMarkerSection,
+	START_MARKER,
 	wrapInMarkers,
 } from "./markers.ts";
 

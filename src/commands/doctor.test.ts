@@ -105,7 +105,7 @@ describe("doctor: jsonl-integrity check", () => {
 		const afterCheck = after.checks.find((ch) => ch.name === "jsonl-integrity");
 		expect(afterCheck?.status).toBe("pass");
 		expect(after.fixed).toBeDefined();
-		expect(after.fixed!.length).toBeGreaterThan(0);
+		expect(after.fixed?.length).toBeGreaterThan(0);
 	});
 });
 

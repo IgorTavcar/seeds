@@ -4,7 +4,6 @@ import { findSeedsDir, readConfig } from "../config.ts";
 import { generateId } from "../id.ts";
 import { accent, muted, outputJson, printIssueOneLine, printSuccess } from "../output.ts";
 import {
-	appendIssue,
 	appendTemplate,
 	issuesPath,
 	readIssues,

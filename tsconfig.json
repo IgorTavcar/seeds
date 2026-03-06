@@ -1,10 +1,12 @@
 {
 	"compilerOptions": {
-		"target": "ESNext",
+		"target": "ES2022",
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
+		"noFallthroughCasesInSwitch": true,
+		"isolatedModules": true,
 		"allowImportingTsExtensions": true,
 		"noEmit": true,
 		"types": ["bun-types"]
