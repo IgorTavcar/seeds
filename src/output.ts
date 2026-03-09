@@ -42,14 +42,11 @@ export function printIssueOneLine(issue: Issue): void {
 					? chalk.yellow("!")
 					: brand("-");
 	const priorityLabel = PRIORITY_LABELS[issue.priority] ?? String(issue.priority);
-	const labels =
-		issue.labels && issue.labels.length > 0
-			? ` ${chalk.magenta(`[${issue.labels.join(", ")}]`)}`
-			: "";
 	const assignee = issue.assignee ? ` · ${muted(`@${issue.assignee}`)}` : "";
 	const blocked = isBlocked ? ` ${chalk.yellow("[blocked]")}` : "";
+	const labelStr = issue.labels?.length ? ` ${muted(`{${issue.labels.join(", ")}}`)}` : "";
 	console.log(
-		`${statusIcon} ${accent.bold(issue.id)} · ${issue.title}   ${muted(`[${priorityLabel} · ${issue.type}]`)}${labels}${assignee}${blocked}`,
+		`${statusIcon} ${accent.bold(issue.id)} · ${issue.title}   ${muted(`[${priorityLabel} · ${issue.type}]`)}${assignee}${blocked}${labelStr}`,
 	);
 }
 

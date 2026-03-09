@@ -75,8 +75,8 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 		typeof flags.labels === "string"
 			? flags.labels
 					.split(",")
-					.map((s) => s.trim())
-					.filter((s) => s.length > 0)
+					.map((l) => l.trim().toLowerCase())
+					.filter(Boolean)
 			: undefined;
 
 	const dir = seedsDir ?? (await findSeedsDir());
@@ -98,7 +98,7 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 			updatedAt: now,
 			...(assignee ? { assignee } : {}),
 			...(description ? { description } : {}),
-			...(labels?.length ? { labels } : {}),
+			...(labels && labels.length > 0 ? { labels } : {}),
 		};
 		await appendIssue(dir, issue);
 		createdId = id;

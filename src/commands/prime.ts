@@ -25,6 +25,8 @@ sd dep add <a> <b>        # a depends on b
 sd label add <id> <label>  # Add label to issue
 sd label remove <id> <l>  # Remove label from issue
 sd blocked                # Show blocked issues
+sd label add <id> <l...>  # Add labels
+sd list --label=bug       # Filter by label
 sd sync                   # Stage + commit .seeds/
 \`\`\`
 
@@ -88,6 +90,16 @@ function fullContent(): string {
 - \`sd dep add <issue> <depends-on>\` — Add dependency
 - \`sd dep remove <issue> <depends-on>\` — Remove dependency
 - \`sd blocked\` — Show all blocked issues
+
+### Labels
+- \`sd label add <id> bug ui\` — Add labels to an issue
+- \`sd label remove <id> bug\` — Remove labels
+- \`sd label list <id>\` — List labels on an issue
+- \`sd label list-all\` — Show all labels in project
+- \`sd list --label=bug\` — Filter by label (AND, comma-separated)
+- \`sd list --label-any=bug,ui\` — Filter by label (OR)
+- \`sd list --unlabeled\` — Issues with no labels
+- \`sd create --title="..." --labels=bug,ui\` — Create with labels
 
 ### Sync & Project Health
 - \`sd sync\` — Stage and commit .seeds/ changes

@@ -105,7 +105,7 @@ describe("doctor: jsonl-integrity check", () => {
 		const afterCheck = after.checks.find((ch) => ch.name === "jsonl-integrity");
 		expect(afterCheck?.status).toBe("pass");
 		expect(after.fixed).toBeDefined();
-		expect(after.fixed!.length).toBeGreaterThan(0);
+		expect(after.fixed?.length).toBeGreaterThan(0);
 	});
 });
 
@@ -484,7 +484,7 @@ describe("doctor: json output", () => {
 		expect(result.success).toBe(true);
 		expect(result.summary.fail).toBe(0);
 		expect(result.summary.warn).toBe(0);
-		expect(result.summary.pass).toBe(9);
+		expect(result.summary.pass).toBe(10);
 	});
 });
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-export const VERSION = "0.2.4";
+export const VERSION = "0.2.5";
 
 import chalk from "chalk";
 import { Command, Help } from "commander";
@@ -108,6 +108,8 @@ async function registerAll(): Promise<void> {
 		import("./commands/upgrade.ts"),
 		import("./commands/completions.ts"),
 		import("./commands/comment.ts"),
+		import("./commands/block.ts"),
+		import("./commands/unblock.ts"),
 	]);
 
 	for (const mod of mods) {

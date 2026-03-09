@@ -65,9 +65,8 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 		}
 		if (Object.keys(byLabel).length > 0) {
 			console.log(`\n${chalk.bold("By Label")}`);
-			const sorted = Object.entries(byLabel).sort((a, b) => b[1] - a[1]);
-			for (const [label, count] of sorted) {
-				console.log(`  ${muted(label.padEnd(14))} ${count}`);
+			for (const [label, count] of Object.entries(byLabel).sort((a, b) => b[1] - a[1])) {
+				console.log(`  ${muted(label.padEnd(15))} ${count}`);
 			}
 		}
 	}

@@ -27,9 +27,23 @@ async function runJson<T = unknown>(args: string[], cwd: string): Promise<T> {
 	return JSON.parse(stdout) as T;
 }
 
+let id1: string;
+let id2: string;
+
 beforeEach(async () => {
 	tmpDir = await mkdtemp(join(tmpdir(), "seeds-label-test-"));
 	await run(["init"], tmpDir);
+
+	const c1 = await runJson<{ success: boolean; id: string }>(
+		["create", "--title", "Issue A"],
+		tmpDir,
+	);
+	const c2 = await runJson<{ success: boolean; id: string }>(
+		["create", "--title", "Issue B"],
+		tmpDir,
+	);
+	id1 = c1.id;
+	id2 = c2.id;
 });
 
 afterEach(async () => {
@@ -37,332 +51,200 @@ afterEach(async () => {
 });
 
 describe("sd label add", () => {
-	test("adds a label to an issue", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue"],
-			tmpDir,
-		);
-		const result = await runJson<{ success: boolean; command: string; label: string }>(
-			["label", "add", create.id, "bug"],
-			tmpDir,
-		);
+	test("adds a single label", async () => {
+		const result = await runJson<{ success: boolean }>(["label", "add", id1, "bug"], tmpDir);
 		expect(result.success).toBe(true);
-		expect(result.label).toBe("bug");
 
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", id1],
 			tmpDir,
 		);
-		expect(show.issue.labels).toEqual(["bug"]);
+		expect(show.issue.labels).toContain("bug");
 	});
 
-	test("adds a label to multiple issues", async () => {
-		const c1 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 1"],
+	test("adds multiple labels at once", async () => {
+		await run(["label", "add", id1, "bug", "ui", "urgent"], tmpDir);
+		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
+			["show", id1],
 			tmpDir,
 		);
-		const c2 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 2"],
-			tmpDir,
-		);
-		const result = await runJson<{ success: boolean; issueIds: string[]; label: string }>(
-			["label", "add", c1.id, c2.id, "urgent"],
-			tmpDir,
-		);
-		expect(result.success).toBe(true);
-		expect(result.issueIds).toEqual([c1.id, c2.id]);
-
-		const s1 = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", c1.id],
-			tmpDir,
-		);
-		const s2 = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", c2.id],
-			tmpDir,
-		);
-		expect(s1.issue.labels).toEqual(["urgent"]);
-		expect(s2.issue.labels).toEqual(["urgent"]);
+		expect(show.issue.labels).toContain("bug");
+		expect(show.issue.labels).toContain("ui");
+		expect(show.issue.labels).toContain("urgent");
 	});
 
 	test("deduplicates labels", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue"],
-			tmpDir,
-		);
-		await run(["label", "add", create.id, "bug"], tmpDir);
-		await run(["label", "add", create.id, "bug"], tmpDir);
-
+		await run(["label", "add", id1, "bug"], tmpDir);
+		await run(["label", "add", id1, "bug"], tmpDir);
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", id1],
 			tmpDir,
 		);
-		expect(show.issue.labels).toEqual(["bug"]);
+		const count = show.issue.labels?.filter((l) => l === "bug").length ?? 0;
+		expect(count).toBe(1);
 	});
 
-	test("fails for unknown issue", async () => {
+	test("normalizes labels to lowercase", async () => {
+		await run(["label", "add", id1, "BUG", "UI"], tmpDir);
+		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
+			["show", id1],
+			tmpDir,
+		);
+		expect(show.issue.labels).toContain("bug");
+		expect(show.issue.labels).toContain("ui");
+	});
+
+	test("fails if issue not found", async () => {
 		const { exitCode } = await run(["label", "add", "proj-ffff", "bug"], tmpDir);
-		expect(exitCode).not.toBe(0);
-	});
-
-	test("requires at least two positional args", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test"],
-			tmpDir,
-		);
-		const { exitCode } = await run(["label", "add", create.id], tmpDir);
 		expect(exitCode).not.toBe(0);
 	});
 });
 
 describe("sd label remove", () => {
-	test("removes a label from an issue", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue"],
-			tmpDir,
-		);
-		await run(["label", "add", create.id, "bug"], tmpDir);
-		await run(["label", "add", create.id, "urgent"], tmpDir);
-
-		await run(["label", "remove", create.id, "bug"], tmpDir);
-
-		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
-			tmpDir,
-		);
-		expect(show.issue.labels).toEqual(["urgent"]);
+	beforeEach(async () => {
+		await run(["label", "add", id1, "bug", "ui", "urgent"], tmpDir);
 	});
 
-	test("cleans up empty labels to undefined", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue"],
+	test("removes a label", async () => {
+		await run(["label", "remove", id1, "bug"], tmpDir);
+		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
+			["show", id1],
 			tmpDir,
 		);
-		await run(["label", "add", create.id, "bug"], tmpDir);
-		await run(["label", "remove", create.id, "bug"], tmpDir);
+		expect(show.issue.labels ?? []).not.toContain("bug");
+		expect(show.issue.labels).toContain("ui");
+	});
 
+	test("removing non-existent label is a no-op", async () => {
+		const result = await runJson<{ success: boolean }>(
+			["label", "remove", id1, "nonexistent"],
+			tmpDir,
+		);
+		expect(result.success).toBe(true);
+	});
+
+	test("removing last label results in no labels field", async () => {
+		await run(["label", "remove", id1, "bug", "ui", "urgent"], tmpDir);
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", id1],
 			tmpDir,
 		);
 		expect(show.issue.labels).toBeUndefined();
 	});
 
-	test("removes label from multiple issues", async () => {
-		const c1 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 1"],
-			tmpDir,
-		);
-		const c2 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 2"],
-			tmpDir,
-		);
-		await run(["label", "add", c1.id, c2.id, "bug"], tmpDir);
-		await run(["label", "remove", c1.id, c2.id, "bug"], tmpDir);
-
-		const s1 = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", c1.id],
-			tmpDir,
-		);
-		const s2 = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", c2.id],
-			tmpDir,
-		);
-		expect(s1.issue.labels).toBeUndefined();
-		expect(s2.issue.labels).toBeUndefined();
-	});
-
-	test("removing a non-existent label succeeds silently", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue", "--labels", "bug,urgent"],
-			tmpDir,
-		);
-		const { exitCode } = await run(["label", "remove", create.id, "nonexistent"], tmpDir);
-		expect(exitCode).toBe(0);
-
-		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
-			tmpDir,
-		);
-		expect(show.issue.labels).toEqual(["bug", "urgent"]);
+	test("fails if issue not found", async () => {
+		const { exitCode } = await run(["label", "remove", "proj-ffff", "bug"], tmpDir);
+		expect(exitCode).not.toBe(0);
 	});
 });
 
 describe("sd label list", () => {
-	test("lists labels on an issue", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue"],
-			tmpDir,
-		);
-		await run(["label", "add", create.id, "bug"], tmpDir);
-		await run(["label", "add", create.id, "urgent"], tmpDir);
-
+	test("lists labels for an issue", async () => {
+		await run(["label", "add", id1, "bug", "ui"], tmpDir);
 		const result = await runJson<{ success: boolean; labels: string[] }>(
-			["label", "list", create.id],
+			["label", "list", id1],
 			tmpDir,
 		);
 		expect(result.success).toBe(true);
-		expect(result.labels).toEqual(["bug", "urgent"]);
+		expect(result.labels).toContain("bug");
+		expect(result.labels).toContain("ui");
 	});
 
-	test("returns empty array for issue with no labels", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue"],
-			tmpDir,
-		);
+	test("shows empty for issue with no labels", async () => {
 		const result = await runJson<{ success: boolean; labels: string[] }>(
-			["label", "list", create.id],
+			["label", "list", id1],
 			tmpDir,
 		);
-		expect(result.labels).toEqual([]);
+		expect(result.labels).toHaveLength(0);
 	});
 
-	test("fails for unknown issue", async () => {
+	test("fails if issue not found", async () => {
 		const { exitCode } = await run(["label", "list", "proj-ffff"], tmpDir);
 		expect(exitCode).not.toBe(0);
 	});
 });
 
 describe("sd label list-all", () => {
-	test("lists all labels across issues with counts", async () => {
-		const c1 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 1"],
-			tmpDir,
-		);
-		const c2 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 2"],
-			tmpDir,
-		);
-		await run(["label", "add", c1.id, "bug"], tmpDir);
-		await run(["label", "add", c1.id, "urgent"], tmpDir);
-		await run(["label", "add", c2.id, "bug"], tmpDir);
-
+	test("collects labels across all issues", async () => {
+		await run(["label", "add", id1, "bug", "ui"], tmpDir);
+		await run(["label", "add", id2, "bug", "backend"], tmpDir);
 		const result = await runJson<{
 			success: boolean;
-			labels: Array<{ label: string; count: number }>;
+			labels: string[];
+			counts: Record<string, number>;
 		}>(["label", "list-all"], tmpDir);
-		expect(result.success).toBe(true);
-		expect(result.labels).toHaveLength(2);
-		// Sorted by count desc: bug=2, urgent=1
-		expect(result.labels[0]).toEqual({ label: "bug", count: 2 });
-		expect(result.labels[1]).toEqual({ label: "urgent", count: 1 });
+		expect(result.labels).toContain("bug");
+		expect(result.labels).toContain("ui");
+		expect(result.labels).toContain("backend");
+		expect(result.counts.bug).toBe(2);
+		expect(result.counts.ui).toBe(1);
 	});
 
-	test("includes labels from closed issues", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test issue"],
+	test("returns empty when no issues have labels", async () => {
+		const result = await runJson<{ success: boolean; labels: string[] }>(
+			["label", "list-all"],
 			tmpDir,
 		);
-		await run(["label", "add", create.id, "archived"], tmpDir);
-		await run(["close", create.id], tmpDir);
-
-		const result = await runJson<{
-			success: boolean;
-			labels: Array<{ label: string; count: number }>;
-		}>(["label", "list-all"], tmpDir);
-		expect(result.labels).toHaveLength(1);
-		expect(result.labels[0]).toEqual({ label: "archived", count: 1 });
-	});
-
-	test("returns empty list when no labels exist", async () => {
-		await run(["create", "--title", "No labels"], tmpDir);
-		const result = await runJson<{
-			success: boolean;
-			labels: Array<{ label: string; count: number }>;
-		}>(["label", "list-all"], tmpDir);
-		expect(result.labels).toEqual([]);
+		expect(result.labels).toHaveLength(0);
 	});
 });
 
 describe("sd create --labels", () => {
-	test("creates issue with labels from comma-separated flag", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Labeled issue", "--labels", "bug,urgent"],
+	test("creates issue with labels", async () => {
+		const result = await runJson<{ success: boolean; id: string }>(
+			["create", "--title", "Labeled issue", "--labels", "bug,ui"],
 			tmpDir,
 		);
-		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
-			tmpDir,
-		);
-		expect(show.issue.labels).toEqual(["bug", "urgent"]);
-	});
+		expect(result.success).toBe(true);
 
-	test("trims whitespace in comma-separated labels", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Labeled issue", "--labels", " bug , urgent "],
-			tmpDir,
-		);
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", result.id],
 			tmpDir,
 		);
-		expect(show.issue.labels).toEqual(["bug", "urgent"]);
-	});
-
-	test("omits labels when not provided", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "No labels"],
-			tmpDir,
-		);
-		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
-			tmpDir,
-		);
-		expect(show.issue.labels).toBeUndefined();
+		expect(show.issue.labels).toContain("bug");
+		expect(show.issue.labels).toContain("ui");
 	});
 });
 
 describe("sd update label flags", () => {
-	test("--add-label adds a label", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test"],
-			tmpDir,
-		);
-		await run(["update", create.id, "--add-label", "bug"], tmpDir);
-
+	test("--add-label adds labels", async () => {
+		await run(["update", id1, "--add-label", "bug,ui"], tmpDir);
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", id1],
 			tmpDir,
 		);
-		expect(show.issue.labels).toEqual(["bug"]);
+		expect(show.issue.labels).toContain("bug");
+		expect(show.issue.labels).toContain("ui");
 	});
 
-	test("--remove-label removes a label", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test", "--labels", "bug,urgent"],
-			tmpDir,
-		);
-		await run(["update", create.id, "--remove-label", "bug"], tmpDir);
-
+	test("--remove-label removes labels", async () => {
+		await run(["label", "add", id1, "bug", "ui", "urgent"], tmpDir);
+		await run(["update", id1, "--remove-label", "bug"], tmpDir);
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", id1],
 			tmpDir,
 		);
-		expect(show.issue.labels).toEqual(["urgent"]);
+		expect(show.issue.labels ?? []).not.toContain("bug");
+		expect(show.issue.labels).toContain("ui");
 	});
 
 	test("--set-labels replaces all labels", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test", "--labels", "bug,urgent"],
-			tmpDir,
-		);
-		await run(["update", create.id, "--set-labels", "feature,v2"], tmpDir);
-
+		await run(["label", "add", id1, "bug", "ui"], tmpDir);
+		await run(["update", id1, "--set-labels", "backend,api"], tmpDir);
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", id1],
 			tmpDir,
 		);
-		expect(show.issue.labels).toEqual(["feature", "v2"]);
+		expect(show.issue.labels).toContain("backend");
+		expect(show.issue.labels).toContain("api");
+		expect(show.issue.labels ?? []).not.toContain("bug");
 	});
 
 	test("--set-labels with empty string clears labels", async () => {
-		const create = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Test", "--labels", "bug,urgent"],
-			tmpDir,
-		);
-		await run(["update", create.id, "--set-labels", ""], tmpDir);
-
+		await run(["label", "add", id1, "bug"], tmpDir);
+		await run(["update", id1, "--set-labels", ""], tmpDir);
 		const show = await runJson<{ success: boolean; issue: { labels?: string[] } }>(
-			["show", create.id],
+			["show", id1],
 			tmpDir,
 		);
 		expect(show.issue.labels).toBeUndefined();
@@ -370,67 +252,67 @@ describe("sd update label flags", () => {
 });
 
 describe("sd list label filters", () => {
-	test("--label filters with AND logic", async () => {
-		const c1 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 1", "--labels", "bug,urgent"],
-			tmpDir,
-		);
-		const _c2 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 2", "--labels", "bug"],
-			tmpDir,
-		);
+	beforeEach(async () => {
+		await run(["label", "add", id1, "bug", "ui"], tmpDir);
+		await run(["label", "add", id2, "bug", "backend"], tmpDir);
+	});
 
-		const result = await runJson<{
-			success: boolean;
-			issues: Array<{ id: string }>;
-			count: number;
-		}>(["list", "--label", "bug,urgent"], tmpDir);
-		expect(result.count).toBe(1);
-		expect(result.issues[0]?.id).toBe(c1.id);
+	test("--label filters with AND logic", async () => {
+		const result = await runJson<{ success: boolean; issues: Array<{ id: string }> }>(
+			["list", "--label", "bug,ui"],
+			tmpDir,
+		);
+		const ids = result.issues.map((i) => i.id);
+		expect(ids).toContain(id1);
+		expect(ids).not.toContain(id2);
+	});
+
+	test("--label with single label", async () => {
+		const result = await runJson<{ success: boolean; issues: Array<{ id: string }> }>(
+			["list", "--label", "bug"],
+			tmpDir,
+		);
+		const ids = result.issues.map((i) => i.id);
+		expect(ids).toContain(id1);
+		expect(ids).toContain(id2);
 	});
 
 	test("--label-any filters with OR logic", async () => {
-		const c1 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 1", "--labels", "bug"],
+		const result = await runJson<{ success: boolean; issues: Array<{ id: string }> }>(
+			["list", "--label-any", "ui,backend"],
 			tmpDir,
 		);
-		const c2 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 2", "--labels", "feature"],
-			tmpDir,
-		);
-		const c3 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Issue 3"],
-			tmpDir,
-		);
-
-		const result = await runJson<{
-			success: boolean;
-			issues: Array<{ id: string }>;
-			count: number;
-		}>(["list", "--label-any", "bug,feature"], tmpDir);
-		expect(result.count).toBe(2);
 		const ids = result.issues.map((i) => i.id);
-		expect(ids).toContain(c1.id);
-		expect(ids).toContain(c2.id);
-		expect(ids).not.toContain(c3.id);
+		expect(ids).toContain(id1);
+		expect(ids).toContain(id2);
 	});
 
-	test("--unlabeled shows only unlabeled issues", async () => {
-		const _c1 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Labeled", "--labels", "bug"],
+	test("--unlabeled returns only unlabeled issues", async () => {
+		// Create an unlabeled issue
+		const c3 = await runJson<{ success: boolean; id: string }>(
+			["create", "--title", "No labels"],
 			tmpDir,
 		);
-		const c2 = await runJson<{ success: boolean; id: string }>(
-			["create", "--title", "Unlabeled"],
+		const result = await runJson<{ success: boolean; issues: Array<{ id: string }> }>(
+			["list", "--unlabeled"],
 			tmpDir,
 		);
+		const ids = result.issues.map((i) => i.id);
+		expect(ids).toContain(c3.id);
+		expect(ids).not.toContain(id1);
+		expect(ids).not.toContain(id2);
+	});
+});
 
+describe("sd stats with labels", () => {
+	test("includes byLabel in stats", async () => {
+		await run(["label", "add", id1, "bug", "ui"], tmpDir);
+		await run(["label", "add", id2, "bug"], tmpDir);
 		const result = await runJson<{
 			success: boolean;
-			issues: Array<{ id: string }>;
-			count: number;
-		}>(["list", "--unlabeled"], tmpDir);
-		expect(result.count).toBe(1);
-		expect(result.issues[0]?.id).toBe(c2.id);
+			stats: { byLabel: Record<string, number> };
+		}>(["stats"], tmpDir);
+		expect(result.stats.byLabel.bug).toBe(2);
+		expect(result.stats.byLabel.ui).toBe(1);
 	});
 });

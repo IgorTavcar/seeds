@@ -3,6 +3,7 @@ domains:
   - docs
   - orchestration
   - agents
+  - commands
 governance:
   max_entries: 100
   warn_entries: 150

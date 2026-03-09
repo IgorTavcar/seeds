@@ -43,21 +43,9 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 	const statusFilter = typeof flags.status === "string" ? flags.status : undefined;
 	const typeFilter = typeof flags.type === "string" ? flags.type : undefined;
 	const assigneeFilter = typeof flags.assignee === "string" ? flags.assignee : undefined;
-	const labelAndFilter =
-		typeof flags.label === "string"
-			? flags.label
-					.split(",")
-					.map((s) => s.trim())
-					.filter((s) => s.length > 0)
-			: undefined;
-	const labelOrFilter =
-		typeof flags["label-any"] === "string"
-			? flags["label-any"]
-					.split(",")
-					.map((s) => s.trim())
-					.filter((s) => s.length > 0)
-			: undefined;
-	const noLabels = flags.unlabeled === true;
+	const labelFilter = typeof flags.label === "string" ? flags.label : undefined;
+	const labelAnyFilter = typeof flags["label-any"] === "string" ? flags["label-any"] : undefined;
+	const unlabeled = flags.unlabeled === true;
 	const showAll = flags.all === true;
 	const limitStr = typeof flags.limit === "string" ? flags.limit : "50";
 	const limit = Number.parseInt(limitStr, 10) || 50;
@@ -72,19 +60,29 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 	}
 	if (typeFilter) issues = issues.filter((i: Issue) => i.type === typeFilter);
 	if (assigneeFilter) issues = issues.filter((i: Issue) => i.assignee === assigneeFilter);
-	if (labelAndFilter && labelAndFilter.length > 0) {
+	if (labelFilter) {
+		const required = labelFilter
+			.split(",")
+			.map((l) => l.trim().toLowerCase())
+			.filter(Boolean);
 		issues = issues.filter((i: Issue) => {
 			const labels = i.labels ?? [];
-			return labelAndFilter.every((l) => labels.includes(l));
+			return required.every((r) => labels.includes(r));
 		});
 	}
-	if (labelOrFilter && labelOrFilter.length > 0) {
+	if (labelAnyFilter) {
+		const any = new Set(
+			labelAnyFilter
+				.split(",")
+				.map((l) => l.trim().toLowerCase())
+				.filter(Boolean),
+		);
 		issues = issues.filter((i: Issue) => {
 			const labels = i.labels ?? [];
-			return labelOrFilter.some((l) => labels.includes(l));
+			return labels.some((l) => any.has(l));
 		});
 	}
-	if (noLabels) {
+	if (unlabeled) {
 		issues = issues.filter((i: Issue) => !i.labels || i.labels.length === 0);
 	}
 
@@ -112,9 +110,9 @@ export function register(program: Command): void {
 		.option("--type <type>", "Filter by type (task|bug|feature|epic)")
 		.option("--assignee <name>", "Filter by assignee")
 		.option("--all", "Include closed issues (default: only open/in_progress)")
-		.option("--label <labels>", "Filter by labels (comma-separated, AND logic)")
-		.option("--label-any <labels>", "Filter by labels (comma-separated, OR logic)")
-		.option("--unlabeled", "Show only issues without labels")
+		.option("--label <labels>", "Filter: must have ALL labels (comma-separated, AND)")
+		.option("--label-any <labels>", "Filter: must have any label (comma-separated, OR)")
+		.option("--unlabeled", "Filter: issues with no labels")
 		.option("--limit <n>", "Max issues to show", "50")
 		.option("--json", "Output as JSON")
 		.action(

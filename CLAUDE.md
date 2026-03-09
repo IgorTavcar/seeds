@@ -52,6 +52,8 @@ seeds/
       update.ts               # sd update
       close.ts                # sd close
       dep.ts                  # sd dep add/remove/list
+      block.ts                # sd block
+      unblock.ts              # sd unblock
       label.ts                # sd label add/remove/list/list-all
       sync.ts                 # sd sync
       blocked.ts              # sd blocked
@@ -77,6 +79,8 @@ seeds/
       prime.test.ts
       onboard.test.ts
       completions.test.ts
+      unblock.test.ts
+      sync.test.ts
     suggestions.test.ts       # Typo suggestion tests
     timing.test.ts            # --timing flag tests
 ```
@@ -129,7 +133,10 @@ sd create --title <text>               Create a new issue
 sd show <id>                           Show issue details
 sd list                                List issues with filters
   --status --type --assignee --limit
-  --label --label-any --unlabeled
+  --label <label>                      Filter by label
+  --label-any <labels>                 Filter by any label (OR)
+  --unlabeled                          Show only unlabeled issues
+  --all                                Include closed issues
 sd ready                               Open issues with no unresolved blockers
 sd update <id>                         Update issue fields
   --add-label --remove-label --set-labels
@@ -142,11 +149,13 @@ sd comment add <issue-id> <body>        Add a comment to an issue
   --author <name>                      (or set SEEDS_AUTHOR env var)
 sd comment list <issue-id>             List comments on an issue
 sd comment delete <issue-id> <cmt-id>  Delete a comment
-sd label add <id...> <label>           Add label to issue(s)
-sd label remove <id...> <label>        Remove label from issue(s)
-sd label list <id>                     Show labels on an issue
-sd label list-all                      All unique labels with counts
+sd block <id> --by <blocker-id>        Mark issue as blocked
+sd unblock <id> --from <blocker-id>    Remove blocker (--all to clear all)
 sd blocked                             Show all blocked issues
+sd label add <id> <label>              Add label to issue
+sd label remove <id> <label>           Remove label from issue
+sd label list <id>                     List labels on issue
+sd label list-all                      List all labels across issues
 sd stats                               Project statistics
 sd sync                                Stage and commit .seeds/ changes
   --status                             Check without committing

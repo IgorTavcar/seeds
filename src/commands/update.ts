@@ -85,30 +85,32 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 			patch.priority = p;
 		}
 
-		// Label operations chain: set-labels first, then add-label, then remove-label.
-		// Each operates on the accumulated result so all flags can be combined.
-		let labelBase = issue.labels ?? [];
-
 		if (typeof flags["set-labels"] === "string") {
 			const val = flags["set-labels"];
 			if (val === "") {
-				labelBase = [];
+				patch.labels = undefined;
 			} else {
-				const labels = val
+				const parsed = val
 					.split(",")
-					.map((s) => s.trim())
-					.filter((s) => s.length > 0);
-				labelBase = labels;
+					.map((l) => l.trim().toLowerCase())
+					.filter(Boolean);
+				patch.labels = parsed.length > 0 ? parsed : undefined;
 			}
-			patch.labels = labelBase.length > 0 ? labelBase : undefined;
 		}
 		if (typeof flags["add-label"] === "string") {
-			labelBase = Array.from(new Set([...labelBase, flags["add-label"]]));
-			patch.labels = labelBase;
+			const toAdd = flags["add-label"]
+				.split(",")
+				.map((l) => l.trim().toLowerCase())
+				.filter(Boolean);
+			const base = patch.labels ?? issue.labels ?? [];
+			const merged = Array.from(new Set([...base, ...toAdd]));
+			patch.labels = merged.length > 0 ? merged : undefined;
 		}
 		if (typeof flags["remove-label"] === "string") {
-			labelBase = labelBase.filter((l) => l !== flags["remove-label"]);
-			patch.labels = labelBase.length > 0 ? labelBase : undefined;
+			const toRemove = new Set(flags["remove-label"].split(",").map((l) => l.trim().toLowerCase()));
+			const base = patch.labels ?? issue.labels ?? [];
+			const remaining = base.filter((l) => !toRemove.has(l));
+			patch.labels = remaining.length > 0 ? remaining : undefined;
 		}
 
 		issues[idx] = { ...issue, ...patch };
@@ -134,9 +136,9 @@ export function register(program: Command): void {
 		.option("--desc <text>", "New description (alias for --description)")
 		.option("--type <type>", "New type (task|bug|feature|epic)")
 		.option("--priority <n>", "New priority 0-4 or P0-P4")
-		.option("--add-label <label>", "Add a label")
-		.option("--remove-label <label>", "Remove a label")
-		.option("--set-labels [labels]", "Set labels (comma-separated, empty to clear)")
+		.option("--add-label <labels>", "Add label(s) (comma-separated)")
+		.option("--remove-label <labels>", "Remove label(s) (comma-separated)")
+		.option("--set-labels <labels>", "Set labels (comma-separated, empty to clear)")
 		.option("--json", "Output as JSON")
 		.action(
 			async (
@@ -151,7 +153,7 @@ export function register(program: Command): void {
 					priority?: string;
 					addLabel?: string;
 					removeLabel?: string;
-					setLabels?: string | true;
+					setLabels?: string;
 					json?: boolean;
 				},
 			) => {
@@ -165,9 +167,7 @@ export function register(program: Command): void {
 				if (opts.priority) args.push("--priority", opts.priority);
 				if (opts.addLabel) args.push("--add-label", opts.addLabel);
 				if (opts.removeLabel) args.push("--remove-label", opts.removeLabel);
-				if (opts.setLabels !== undefined) {
-					args.push("--set-labels", opts.setLabels === true ? "" : opts.setLabels);
-				}
+				if (opts.setLabels !== undefined) args.push("--set-labels", opts.setLabels);
 				if (opts.json) args.push("--json");
 				await run(args);
 			},

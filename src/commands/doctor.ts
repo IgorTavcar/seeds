@@ -331,6 +331,45 @@ function checkCircularDependencies(issues: Issue[]): DoctorCheck {
 	};
 }
 
+function checkLabelSchema(seedsDir: string): DoctorCheck {
+	const details: string[] = [];
+	const lines = readRawLines(join(seedsDir, ISSUES_FILE));
+	for (const line of lines) {
+		if (!line.parsed) continue;
+		const issue = line.parsed as Record<string, unknown>;
+		const id = typeof issue.id === "string" ? issue.id : `line ${String(line.lineNumber)}`;
+		if (issue.labels !== undefined) {
+			if (!Array.isArray(issue.labels)) {
+				details.push(`${id}: labels is not an array`);
+			} else {
+				for (const label of issue.labels) {
+					if (typeof label !== "string") {
+						details.push(`${id}: label is not a string: ${JSON.stringify(label)}`);
+					} else if (label.trim() === "") {
+						details.push(`${id}: empty label string`);
+					}
+				}
+			}
+		}
+	}
+	if (details.length > 0) {
+		return {
+			name: "label-schema",
+			status: "warn",
+			message: `${String(details.length)} label schema issue(s)`,
+			details,
+			fixable: true,
+		};
+	}
+	return {
+		name: "label-schema",
+		status: "pass",
+		message: "All label arrays are valid",
+		details: [],
+		fixable: false,
+	};
+}
+
 function checkStaleLocks(seedsDir: string): DoctorCheck {
 	const details: string[] = [];
 	for (const file of [ISSUES_FILE, TEMPLATES_FILE]) {
@@ -458,6 +497,10 @@ function applyFixes(seedsDir: string, checks: DoctorCheck[]): string[] {
 				}
 				break;
 			}
+			case "label-schema": {
+				fixLabelSchema(seedsDir, fixed);
+				break;
+			}
 			case "gitattributes": {
 				fixGitattributes(seedsDir, fixed);
 				break;
@@ -465,6 +508,41 @@ function applyFixes(seedsDir: string, checks: DoctorCheck[]): string[] {
 		}
 	}
 	return fixed;
+}
+
+function fixLabelSchema(seedsDir: string, fixed: string[]): void {
+	const lines = readRawLines(join(seedsDir, ISSUES_FILE));
+	const idMap = new Map<string, Issue>();
+	for (const line of lines) {
+		if (!line.parsed) continue;
+		const issue = line.parsed as Issue;
+		if (typeof issue.id === "string") {
+			idMap.set(issue.id, issue);
+		}
+	}
+	const issues = Array.from(idMap.values());
+	let changed = false;
+	for (const issue of issues) {
+		if (issue.labels !== undefined) {
+			if (!Array.isArray(issue.labels)) {
+				issue.labels = undefined;
+				changed = true;
+			} else {
+				const cleaned = issue.labels.filter(
+					(l): l is string => typeof l === "string" && l.trim() !== "",
+				);
+				if (cleaned.length !== issue.labels.length) {
+					issue.labels = cleaned.length > 0 ? cleaned : undefined;
+					changed = true;
+				}
+			}
+		}
+	}
+	if (changed) {
+		const content = `${issues.map((i) => JSON.stringify(i)).join("\n")}\n`;
+		writeFileSync(join(seedsDir, ISSUES_FILE), content);
+		fixed.push("Cleaned up invalid label entries");
+	}
 }
 
 function fixDuplicates(seedsDir: string, fixed: string[]): void {
@@ -659,6 +737,7 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 	checks.push(checkReferentialIntegrity(issues));
 	checks.push(checkBidirectionalConsistency(issues));
 	checks.push(checkCircularDependencies(issues));
+	checks.push(checkLabelSchema(dir));
 	checks.push(checkStaleLocks(dir));
 	checks.push(checkGitattributes(dir));
 
@@ -685,6 +764,7 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 				reChecks.push(checkReferentialIntegrity(reIssues));
 				reChecks.push(checkBidirectionalConsistency(reIssues));
 				reChecks.push(checkCircularDependencies(reIssues));
+				reChecks.push(checkLabelSchema(dir));
 				reChecks.push(checkStaleLocks(dir));
 				reChecks.push(checkGitattributes(dir));
 			}

@@ -1,11 +1,10 @@
 import { Command } from "commander";
 import { findSeedsDir } from "../config.ts";
-import { accent, muted, outputJson } from "../output.ts";
+import { accent, muted, outputJson, printSuccess } from "../output.ts";
 import { issuesPath, readIssues, withLock, writeIssues } from "../store.ts";
 
-function cleanLabels(labels: string[] | undefined): string[] | undefined {
-	if (!labels || labels.length === 0) return undefined;
-	return labels;
+function normalizeLabels(raw: string[]): string[] {
+	return raw.map((l) => l.trim().toLowerCase()).filter(Boolean);
 }
 
 export async function run(args: string[], seedsDir?: string): Promise<void> {
@@ -19,26 +18,25 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 
 	if (subcmd === "list-all") {
 		const issues = await readIssues(dir);
-		const counts = new Map<string, number>();
+		const counts: Record<string, number> = {};
 		for (const issue of issues) {
 			for (const label of issue.labels ?? []) {
-				counts.set(label, (counts.get(label) ?? 0) + 1);
+				counts[label] = (counts[label] ?? 0) + 1;
 			}
 		}
-		const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+		const labels = Object.keys(counts).sort();
 
 		if (jsonMode) {
-			const labels = sorted.map(([label, count]) => ({ label, count }));
-			outputJson({ success: true, command: "label list-all", labels });
+			outputJson({ success: true, command: "label list-all", labels, counts });
 		} else {
-			if (sorted.length === 0) {
+			if (labels.length === 0) {
 				console.log("No labels found.");
 				return;
 			}
-			console.log(`${accent.bold("All Labels")}\n`);
-			for (const [label, count] of sorted) {
-				console.log(`  ${accent(label)} ${muted(`(${String(count)})`)}`);
+			for (const label of labels) {
+				console.log(`  ${accent(label.padEnd(20))} ${muted(String(counts[label]))}`);
 			}
+			console.log(`\n${labels.length} label(s)`);
 		}
 		return;
 	}
@@ -55,65 +53,74 @@ export async function run(args: string[], seedsDir?: string): Promise<void> {
 		if (jsonMode) {
 			outputJson({ success: true, command: "label list", issueId, labels });
 		} else {
-			console.log(`${accent.bold(issueId)} ${muted("labels:")}`);
-			if (labels.length > 0) {
+			if (labels.length === 0) {
+				console.log(`${accent.bold(issueId)} has no labels.`);
+			} else {
+				console.log(`${accent.bold(issueId)} ${muted("labels:")}`);
 				for (const label of labels) {
 					console.log(`  ${accent(label)}`);
 				}
-			} else {
-				console.log(muted("  No labels."));
 			}
 		}
 		return;
 	}
 
-	if (subcmd === "add" || subcmd === "remove") {
-		const rest = positional.slice(1);
-		if (rest.length < 2) {
-			throw new Error(`Usage: sd label ${subcmd} <issue-id...> <label>`);
+	if (subcmd === "add") {
+		const issueId = positional[1];
+		const rawLabels = positional.slice(2);
+		if (!issueId || rawLabels.length === 0) {
+			throw new Error("Usage: sd label add <issue> <label> [<label2> ...]");
 		}
-		const label = rest[rest.length - 1]!;
-		const issueIds = rest.slice(0, -1);
-
-		if (!label.trim()) {
-			throw new Error("Label cannot be empty");
-		}
+		const newLabels = normalizeLabels(rawLabels);
+		if (newLabels.length === 0) throw new Error("No valid labels provided");
 
 		await withLock(issuesPath(dir), async () => {
 			const issues = await readIssues(dir);
+			const idx = issues.findIndex((i) => i.id === issueId);
+			if (idx === -1) throw new Error(`Issue not found: ${issueId}`);
 
-			for (const issueId of issueIds) {
-				const idx = issues.findIndex((i) => i.id === issueId);
-				if (idx === -1) throw new Error(`Issue not found: ${issueId}`);
-
-				const issue = issues[idx]!;
-				const now = new Date().toISOString();
-
-				if (subcmd === "add") {
-					const labels = Array.from(new Set([...(issue.labels ?? []), label]));
-					issues[idx] = { ...issue, labels, updatedAt: now };
-				} else {
-					const labels = (issue.labels ?? []).filter((l) => l !== label);
-					issues[idx] = { ...issue, labels: cleanLabels(labels), updatedAt: now };
-				}
-			}
-
+			const issue = issues[idx]!;
+			const merged = Array.from(new Set([...(issue.labels ?? []), ...newLabels]));
+			issues[idx] = { ...issue, labels: merged, updatedAt: new Date().toISOString() };
 			await writeIssues(dir, issues);
 		});
 
 		if (jsonMode) {
-			outputJson({
-				success: true,
-				command: `label ${subcmd}`,
-				issueIds,
-				label,
-			});
+			outputJson({ success: true, command: "label add", issueId, labels: newLabels });
 		} else {
-			const verb = subcmd === "add" ? "Added" : "Removed";
-			const ids = issueIds.map((id) => accent(id)).join(", ");
-			console.log(
-				`${verb} label ${accent(label)} ${muted(subcmd === "add" ? "to" : "from")} ${ids}`,
+			printSuccess(
+				`Added label(s) ${newLabels.map((l) => accent(l)).join(", ")} to ${accent(issueId)}`,
 			);
+		}
+		return;
+	}
+
+	if (subcmd === "remove") {
+		const issueId = positional[1];
+		const rawLabels = positional.slice(2);
+		if (!issueId || rawLabels.length === 0) {
+			throw new Error("Usage: sd label remove <issue> <label> [<label2> ...]");
+		}
+		const removeSet = new Set(normalizeLabels(rawLabels));
+
+		await withLock(issuesPath(dir), async () => {
+			const issues = await readIssues(dir);
+			const idx = issues.findIndex((i) => i.id === issueId);
+			if (idx === -1) throw new Error(`Issue not found: ${issueId}`);
+
+			const issue = issues[idx]!;
+			const remaining = (issue.labels ?? []).filter((l) => !removeSet.has(l));
+			const updated: typeof issue = { ...issue, updatedAt: new Date().toISOString() };
+			if (remaining.length > 0) updated.labels = remaining;
+			else updated.labels = undefined;
+			issues[idx] = updated;
+			await writeIssues(dir, issues);
+		});
+
+		if (jsonMode) {
+			outputJson({ success: true, command: "label remove", issueId, labels: [...removeSet] });
+		} else {
+			printSuccess(`Removed label(s) from ${accent(issueId)}`);
 		}
 		return;
 	}
@@ -125,43 +132,43 @@ export function register(program: Command): void {
 	const label = new Command("label").description("Manage issue labels");
 
 	label
-		.command("add <args...>")
-		.description("Add a label to one or more issues (last arg = label)")
+		.command("add <issue> <labels...>")
+		.description("Add labels to an issue")
 		.option("--json", "Output as JSON")
-		.action(async (args: string[], opts: { json?: boolean }) => {
-			const runArgs: string[] = ["add", ...args];
-			if (opts.json) runArgs.push("--json");
-			await run(runArgs);
+		.action(async (issue: string, labels: string[], opts: { json?: boolean }) => {
+			const args: string[] = ["add", issue, ...labels];
+			if (opts.json) args.push("--json");
+			await run(args);
 		});
 
 	label
-		.command("remove <args...>")
-		.description("Remove a label from one or more issues (last arg = label)")
+		.command("remove <issue> <labels...>")
+		.description("Remove labels from an issue")
 		.option("--json", "Output as JSON")
-		.action(async (args: string[], opts: { json?: boolean }) => {
-			const runArgs: string[] = ["remove", ...args];
-			if (opts.json) runArgs.push("--json");
-			await run(runArgs);
+		.action(async (issue: string, labels: string[], opts: { json?: boolean }) => {
+			const args: string[] = ["remove", issue, ...labels];
+			if (opts.json) args.push("--json");
+			await run(args);
 		});
 
 	label
 		.command("list <issue>")
-		.description("Show labels on an issue")
+		.description("List labels on an issue")
 		.option("--json", "Output as JSON")
 		.action(async (issue: string, opts: { json?: boolean }) => {
-			const runArgs: string[] = ["list", issue];
-			if (opts.json) runArgs.push("--json");
-			await run(runArgs);
+			const args: string[] = ["list", issue];
+			if (opts.json) args.push("--json");
+			await run(args);
 		});
 
 	label
 		.command("list-all")
-		.description("Show all unique labels across all issues with counts")
+		.description("List all labels used in the project")
 		.option("--json", "Output as JSON")
 		.action(async (opts: { json?: boolean }) => {
-			const runArgs: string[] = ["list-all"];
-			if (opts.json) runArgs.push("--json");
-			await run(runArgs);
+			const args: string[] = ["list-all"];
+			if (opts.json) args.push("--json");
+			await run(args);
 		});
 
 	program.addCommand(label);
